@@ -1,17 +1,22 @@
-import { CallSender, SerializedMethods, WindowsInfo } from '../types';
+import {
+  CallSender,
+  NormalizedMessageEvent,
+  PostMessageMethods,
+  SerializedMethods,
+  WindowsInfo,
+} from '../types';
 import { Destructor } from '../createDestructor';
-import connectCallReceiver from '../connectCallReceiver';
-import connectCallSender from '../connectCallSender';
+import connectCallReceiverWebView from '../connectCallReceiverWebView';
+import connectCallSenderWebView from '../connectCallSenderWebView';
 
 /**
  * Handles an ACK handshake message.
  */
 export default (
   serializedMethods: SerializedMethods,
-  childOrigin: string,
-  originForSending: string,
   destructor: Destructor,
-  log: Function
+  log: Function,
+  methods: PostMessageMethods
 ) => {
   const { destroy, onDestroy } = destructor;
   let destroyCallReceiver: Function;
@@ -22,23 +27,8 @@ export default (
   // latest provided by the child.
   const callSender: CallSender = {};
 
-  return (event: MessageEvent): CallSender | undefined => {
-    if (childOrigin !== '*' && event.origin !== childOrigin) {
-      log(
-        `Parent: Handshake - Received ACK message from origin ${event.origin} which did not match expected origin ${childOrigin}`
-      );
-      return;
-    }
-
+  return (event: NormalizedMessageEvent): CallSender | undefined => {
     log('Parent: Handshake - Received ACK');
-
-    const info: WindowsInfo = {
-      localName: 'Parent',
-      local: window,
-      remote: event.source as Window,
-      originForSending: originForSending,
-      originForReceiving: childOrigin,
-    };
 
     // If the child reconnected, we need to destroy the prior call receiver
     // before setting up a new one.
@@ -46,7 +36,11 @@ export default (
       destroyCallReceiver();
     }
 
-    destroyCallReceiver = connectCallReceiver(info, serializedMethods, log);
+    destroyCallReceiver = connectCallReceiverWebView(
+      methods,
+      serializedMethods,
+      log
+    );
     onDestroy(destroyCallReceiver);
 
     // If the child reconnected, we need to remove the methods from the
@@ -57,11 +51,12 @@ export default (
       });
     }
 
-    receiverMethodNames = event.data.methodNames;
+    // TODO: Remove assertion
+    receiverMethodNames = event.data.methodNames!;
 
-    const destroyCallSender = connectCallSender(
+    const destroyCallSender = connectCallSenderWebView(
       callSender,
-      info,
+      methods,
       receiverMethodNames,
       destroy,
       log

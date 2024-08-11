@@ -3,7 +3,8 @@ import {
   CallMessage,
   SerializedMethods,
   ReplyMessage,
-  WindowsInfo,
+  NormalizedMessageEvent,
+  PostMessageMethods,
 } from './types';
 import {
   MessageType,
@@ -17,32 +18,20 @@ import {
  * responds with the return value.
  */
 export default (
-  info: WindowsInfo,
+  methods: PostMessageMethods,
   serializedMethods: SerializedMethods,
   log: Function
 ) => {
-  const {
-    localName,
-    local,
-    remote,
-    originForSending,
-    originForReceiving,
-  } = info;
+  const localName = 'Parent';
   let destroyed = false;
 
-  const handleMessageEvent = (event: MessageEvent) => {
-    if (event.source !== remote || event.data.penpal !== MessageType.Call) {
+  const handleMessageEvent = (event: NormalizedMessageEvent) => {
+    if (event.data.penpal !== MessageType.Call) {
       return;
     }
 
-    if (originForReceiving !== '*' && event.origin !== originForReceiving) {
-      log(
-        `${localName} received message from origin ${event.origin} which did not match expected origin ${originForReceiving}`
-      );
-      return;
-    }
-
-    const callMessage: CallMessage = event.data;
+    // TODO: Remove type cast
+    const callMessage: CallMessage = event.data as CallMessage;
     const { methodName, args, id } = callMessage;
 
     log(`${localName}: Received ${methodName}() call`);
@@ -79,14 +68,14 @@ export default (
         }
 
         try {
-          remote.postMessage(message, originForSending);
+          methods.postMessage(message);
         } catch (err) {
-          // If a consumer attempts to send an object that's not cloneable (e.g., window),
-          // we want to ensure the receiver's promise gets rejected.
           if (
             err instanceof Error &&
             err.name === NativeErrorName.DataCloneError
           ) {
+            // If a consumer attempts to send an object that's not cloneable (e.g., window),
+            // we want to ensure the receiver's promise gets rejected.
             const errorReplyMessage: ReplyMessage = {
               penpal: MessageType.Reply,
               id,
@@ -94,7 +83,7 @@ export default (
               returnValue: serializeError(err),
               returnValueIsError: true,
             };
-            remote.postMessage(errorReplyMessage, originForSending);
+            methods.postMessage(errorReplyMessage);
           }
 
           throw err;
@@ -110,10 +99,10 @@ export default (
     );
   };
 
-  local.addEventListener(NativeEventType.Message, handleMessageEvent);
+  methods.addEventListener(NativeEventType.Message, handleMessageEvent);
 
   return () => {
     destroyed = true;
-    local.removeEventListener(NativeEventType.Message, handleMessageEvent);
+    methods.removeEventListener(NativeEventType.Message, handleMessageEvent);
   };
 };

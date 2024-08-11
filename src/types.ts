@@ -1,3 +1,4 @@
+import { WebViewMessageEvent } from 'react-native-webview';
 import { ErrorCode, MessageType, Resolution } from './enums';
 
 /**
@@ -131,4 +132,67 @@ export type WindowsInfo = {
    * Origin that should be used for receiving messages from the remote window.
    */
   originForReceiving: string;
+};
+
+/**
+ * Checks if the event is an iframe message event.
+ */
+const isMessageEvent = (
+  event: MessageEvent | WebViewMessageEvent
+): event is MessageEvent => {
+  return (event as MessageEvent).source !== undefined;
+};
+
+/**
+ * Checks if the event is a WebView message event.
+ */
+const isWebViewMessageEvent = (
+  event: MessageEvent | WebViewMessageEvent
+): event is WebViewMessageEvent => {
+  return (event as WebViewMessageEvent).nativeEvent !== undefined;
+};
+
+/**
+ * A normalized message event.
+ */
+export type NormalizedMessageEvent = {
+  data: {
+    penpal: MessageType;
+    id: number;
+    methodName: string;
+    args: any[];
+    methodNames?: string[];
+    resolution?: Resolution;
+    returnValue?: any;
+    returnValueIsError?: boolean;
+  };
+};
+
+/**
+ * Normalizes a message event.
+ */
+export const normalizeMessageEvent = (
+  event: MessageEvent | WebViewMessageEvent
+): NormalizedMessageEvent => {
+  if (isWebViewMessageEvent(event)) {
+    try {
+      return {
+        data: JSON.parse(event.nativeEvent.data),
+      };
+    } catch (error) {
+      throw new Error('Invalid WebView message event');
+    }
+  } else if (isMessageEvent(event)) {
+    return {
+      data: event.data,
+    };
+  }
+
+  throw new Error('Invalid message event');
+};
+
+export type PostMessageMethods = {
+  postMessage: (message: any) => void;
+  addEventListener: (event: string, listener: (event: any) => void) => void;
+  removeEventListener: (event: string, listener: (event: any) => void) => void;
 };

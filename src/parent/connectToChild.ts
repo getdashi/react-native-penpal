@@ -4,37 +4,42 @@ import {
   AsyncMethodReturns,
   Connection,
   Methods,
+  PostMessageMethods,
+  NormalizedMessageEvent,
 } from '../types';
-import { ErrorCode, MessageType, NativeEventType } from '../enums';
+import { MessageType, NativeEventType } from '../enums';
 
 import createDestructor from '../createDestructor';
 import createLogger from '../createLogger';
-import getOriginFromSrc from './getOriginFromSrc';
 import handleAckMessageFactory from './handleAckMessageFactory';
 import handleSynMessageFactory from './handleSynMessageFactory';
 import { serializeMethods } from '../methodSerialization';
-import monitorIframeRemoval from './monitorIframeRemoval';
 import startConnectionTimeout from '../startConnectionTimeout';
-import validateIframeHasSrcOrSrcDoc from './validateIframeHasSrcOrSrcDoc';
 
 type Options = {
   /**
-   * The iframe to which a connection should be made.
+   * The postMessage function to use to send messages to the iframe/webview.
    */
-  iframe: HTMLIFrameElement;
+  postMessage: (message: string) => void;
   /**
-   * Methods that may be called by the iframe.
+   * Adds an event listener.
+   */
+  addEventListener: (event: string, listener: (event: any) => void) => void;
+  /**
+   * Removes an event listener.
+   */
+  removeEventListener: (event: string, listener: (event: any) => void) => void;
+  /**
+   * The child origin to use to secure communication.
+   */
+  childOrigin: string;
+  /**
+   * Methods that may be called by the iframe/webview.
    */
   methods?: Methods;
   /**
-   * The child origin to use to secure communication. If
-   * not provided, the child origin will be derived from the
-   * iframe's src or srcdoc value.
-   */
-  childOrigin?: string;
-  /**
    * The amount of time, in milliseconds, Penpal should wait
-   * for the iframe to respond before rejecting the connection promise.
+   * for the iframe/webview to respond before rejecting the connection promise.
    */
   timeout?: number;
   /**
@@ -49,44 +54,46 @@ type Options = {
 export default <TCallSender extends object = CallSender>(
   options: Options
 ): Connection<TCallSender> => {
-  let { iframe, methods = {}, childOrigin, timeout, debug = false } = options;
+  let {
+    postMessage,
+    addEventListener,
+    removeEventListener,
+    methods = {},
+    childOrigin,
+    timeout,
+    debug = false,
+  } = options;
 
   const log = createLogger(debug);
   const destructor = createDestructor('Parent', log);
   const { onDestroy, destroy } = destructor;
 
   if (!childOrigin) {
-    validateIframeHasSrcOrSrcDoc(iframe);
-    childOrigin = getOriginFromSrc(iframe.src);
+    throw new Error('Child origin is required');
   }
 
-  // If event.origin is "null", the remote protocol is file: or data: and we
-  // must post messages with "*" as targetOrigin when sending messages.
-  // https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage#Using_window.postMessage_in_extensions
-  const originForSending = childOrigin === 'null' ? '*' : childOrigin;
   const serializedMethods = serializeMethods(methods);
+  const postMessageMethods: PostMessageMethods = {
+    postMessage,
+    addEventListener,
+    removeEventListener,
+  };
   const handleSynMessage = handleSynMessageFactory(
     log,
     serializedMethods,
-    childOrigin,
-    originForSending
+    postMessage
   );
   const handleAckMessage = handleAckMessageFactory(
     serializedMethods,
-    childOrigin,
-    originForSending,
     destructor,
-    log
+    log,
+    postMessageMethods
   );
 
   const promise: Promise<AsyncMethodReturns<TCallSender>> = new Promise(
     (resolve, reject) => {
       const stopConnectionTimeout = startConnectionTimeout(timeout, destroy);
-      const handleMessage = (event: MessageEvent) => {
-        if (event.source !== iframe.contentWindow || !event.data) {
-          return;
-        }
-
+      const handleMessage = (event: NormalizedMessageEvent) => {
         if (event.data.penpal === MessageType.Syn) {
           handleSynMessage(event);
           return;
@@ -105,13 +112,10 @@ export default <TCallSender extends object = CallSender>(
         }
       };
 
-      window.addEventListener(NativeEventType.Message, handleMessage);
-
       log('Parent: Awaiting handshake');
-      monitorIframeRemoval(iframe, destructor);
 
       onDestroy((error?: PenpalError) => {
-        window.removeEventListener(NativeEventType.Message, handleMessage);
+        removeEventListener(NativeEventType.Message, handleMessage);
 
         if (error) {
           reject(error);
