@@ -10,6 +10,8 @@ const argv = require('yargs').argv;
 const rollup = require('rollup');
 const config = require('../rollup.config');
 
+const isCI = process.env.CI === 'true';
+
 const serveChildViews = () => {
   // We'll run the child iframe on a different port from karma to
   // to properly test cross-domain iframe communication
@@ -24,11 +26,18 @@ const serveChildViews = () => {
 };
 
 const runTests = () => {
-  new KarmaServer({
+  const karmaConfig = {
     configFile: path.resolve(__dirname, '../karma.conf.js'),
     singleRun: !argv.watch,
     // logLevel: 'debug'
-  }).start();
+  };
+
+  if (isCI) {
+    karmaConfig.browsers = ['ChromeHeadless'];
+    // Add any other CI-specific configurations here
+  }
+
+  new KarmaServer(karmaConfig).start();
 };
 
 const build = () => {
@@ -58,5 +67,10 @@ const build = () => {
   });
 };
 
-serveChildViews();
-build();
+if (isCI) {
+  // For CI, we might want to skip serving child views and just run tests
+  runTests();
+} else {
+  serveChildViews();
+  build();
+}

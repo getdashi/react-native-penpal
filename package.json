@@ -1,15 +1,15 @@
 {
-  "name": "penpal",
-  "version": "6.2.2",
-  "description": "A promise-based library for communicating with iframes via postMessage.",
+  "name": "@getdashi/react-native-penpal",
+  "version": "0.1.0",
+  "description": "A react-native wrapper for Penpal, a promise-based library for securely communicating with iframes via postMessage.",
   "author": "Aaron Hardy <aaron@aaronhardy.com>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/Aaronius/penpal/issues"
+    "url": "https://github.com/getdashi/react-native-penpal/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Aaronius/penpal.git"
+    "url": "git+https://github.com/getdashi/react-native-penpal.git"
   },
   "keywords": [
     "iframe",
@@ -33,8 +33,9 @@
     "test:sauce": "npm-run-all build 'runTests -- --sauce'",
     "runTests": "node ./scripts/test.js",
     "runTests:watch": "npm run runTests -- --watch",
-    "prepublishOnly": "npm-run-all format lint test build",
-    "prepare": "husky install"
+    "test:ci": "CI=true node ./scripts/test.js",
+    "prepublishOnly": "npm-run-all format lint build",
+    "ci": "npm-run-all format lint build"
   },
   "lint-staged": {
     "**/*.js": [
@@ -86,5 +87,8 @@
     "terser": "^4.6.11",
     "typescript": "^3.8.3",
     "yargs": "^15.3.1"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
   }
 }
