@@ -1,6 +1,6 @@
 {
   "name": "@getdashi/react-native-penpal",
-  "version": "0.1.0",
+  "version": "0.1.0-dev3",
   "description": "A react-native wrapper for Penpal, a promise-based library for securely communicating with iframes via postMessage.",
   "author": "Aaron Hardy <aaron@aaronhardy.com>",
   "license": "MIT",
