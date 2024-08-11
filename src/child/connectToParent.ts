@@ -14,7 +14,10 @@ import startConnectionTimeout from '../startConnectionTimeout';
 
 const areGlobalsAccessible = () => {
   try {
-    clearTimeout();
+    // Check for the existence of a global variable instead
+    if (typeof window === 'undefined') {
+      throw new Error('Globals not accessible');
+    }
   } catch (e) {
     return false;
   }

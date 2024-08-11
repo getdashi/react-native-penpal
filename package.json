@@ -21,7 +21,7 @@
   "types": "lib/index.d.ts",
   "scripts": {
     "clean": "rimraf lib es5 dist",
-    "build:lib": "tsc",
+    "build:lib": "tsc --project tsconfig.json",
     "build:es5": "babel ./src --out-dir ./es5 --extensions '.ts'",
     "build:dist": "rollup --config rollup.config.js && terser dist/penpal.js -o dist/penpal.min.js -m --source-map",
     "build:analysis": "node ./scripts/filesize dist/penpal.min.js",
@@ -88,7 +88,7 @@
     "rollup-plugin-typescript": "^1.0.1",
     "serve-static": "^1.13.2",
     "terser": "^4.6.11",
-    "typescript": "^3.8.3",
+    "typescript": "^4.3.5",
     "yargs": "^15.3.1"
   },
   "publishConfig": {
