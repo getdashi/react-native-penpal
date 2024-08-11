@@ -112,6 +112,8 @@ export default <TCallSender extends object = CallSender>(
         }
       };
 
+      addEventListener(NativeEventType.Message, handleMessage);
+
       log('Parent: Awaiting handshake');
 
       onDestroy((error?: PenpalError) => {
