@@ -94,6 +94,7 @@ export default <TCallSender extends object = CallSender>(
     (resolve, reject) => {
       const stopConnectionTimeout = startConnectionTimeout(timeout, destroy);
       const handleMessage = (event: NormalizedMessageEvent) => {
+        log('Parent: Received message', event);
         if (event.data.penpal === MessageType.Syn) {
           handleSynMessage(event);
           return;

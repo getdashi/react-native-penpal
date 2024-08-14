@@ -38,7 +38,8 @@ export default (
     // If event.origin is "null", the remote protocol is file: or data: and we
     // must post messages with "*" as targetOrigin when sending messages.
     // https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage#Using_window.postMessage_in_extensions
-    const originForSending = event.origin === 'null' ? '*' : event.origin;
+    // The React Native parent context sends messages with _fromReactNative flag.
+    const originForSending = (event.origin === 'null' || event.data._fromReactNative) ? '*' : event.origin;
 
     const ackMessage: AckMessage = {
       penpal: MessageType.Ack,
